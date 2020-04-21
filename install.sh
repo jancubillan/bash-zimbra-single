@@ -22,7 +22,7 @@ timedatectl set-ntp true
 systemctl restart chronyd
 
 hostnamectl set-hostname "${zimbra_fqdn}"
-print '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
+printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
 
 yum install -y vim bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
 
