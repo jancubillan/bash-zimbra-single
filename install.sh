@@ -104,7 +104,7 @@ cat << EOF > /var/named/"${zimbra_domain}".zone
 	NS	@
 	A	${zimbra_ip}
 	MX	1	${zimbra_fqdn}.
-${zimbra_shortname} A	${zimbra_ip}
+${zimbra_shortname}	A	${zimbra_ip}
 EOF
 
 chown root.named /var/named/"${zimbra_domain}".zone
