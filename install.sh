@@ -24,7 +24,8 @@ systemctl restart chronyd
 hostnamectl set-hostname "${zimbra_fqdn}"
 printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
 
-yum install -y vim bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
+yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
+yum update -y
 
 firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
 firewall-cmd --reload
@@ -48,7 +49,7 @@ options {
 	recursion yes;
 
 	forward only;
-	forwarders { "${zimbra_forwarders}" };
+	forwarders { ${zimbra_forwarders} };
 
 	dnssec-enable yes;
 	dnssec-validation no;
@@ -73,15 +74,15 @@ zone "." IN {
 	file "named.ca";
 };
 
-zone "${zimbra_domain}" IN {
+zone ${zimbra_domain} IN {
 	type master;
-	file "${zimbra_domain}".zone";
+	file ${zimbra_domain}.zone";
 	allow-update { none; };
 };
 
-zone "${zimbra_reverse_ip}".in-addr.arpa" IN {
+zone ${zimbra_reverse_ip}.in-addr.arpa" IN {
 	type master;
-	file "${zimbra_domain}".revzone";
+	file ${zimbra_domain}.revzone";
 	allow-update { none; };
 };
 
