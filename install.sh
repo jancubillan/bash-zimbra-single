@@ -94,16 +94,16 @@ chmod 640 /etc/named.conf
 
 cat << EOF > /var/named/"${zimbra_domain}".zone
 $TTL 1D
-@	IN SOA	@ "${zimbra_domain}". (
+@	IN SOA	@ ${zimbra_domain}. (
 				"${zimbra_serial}"	; serial
 					1D	; refresh
 					1H	; retry
 					1W	; expire
 					3H )	; minimum
 	NS	@
-	A	{{ zimbra_ip }}
-	MX	1	"${zimbra_fqdn}".
-"${zimbra_shortname}" A	"${zimbra_ip}"
+	A	${zimbra_ip}
+	MX	1	${zimbra_fqdn}.
+${zimbra_shortname} A	${zimbra_ip}
 EOF
 
 chown root.named /var/named/"${zimbra_domain}".zone
@@ -111,14 +111,14 @@ chmod 640 /var/named/"${zimbra_domain}".zone
 
 cat << EOF > /var/named/"${zimbra_domain}".revzone
 $TTL 1D
-@	IN SOA	@ "${zimbra_domain}". (
-				"${zimbra_serial}"	; serial
+@	IN SOA	@ ${zimbra_domain}. (
+				${zimbra_serial}	; serial
 					1D	; refresh
 					1H	; retry
 					1W	; expire
 					3H )	; minimum
-	NS	"${zimbra_domain}".
-"${zimbra_ptr}"	PTR	"${zimbra_fqdn}".
+	NS	${zimbra_domain}.
+${zimbra_ptr}	PTR	${zimbra_fqdn}.
 EOF
 
 chown root.named /var/named/"${zimbra_domain}".revzone
