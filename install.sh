@@ -133,7 +133,7 @@ nmcli con up "${zimbra_network_name}"
 yum install -y perl net-tools
 wget "${zimbra_installer_url}"
 tar xvf "${zimbra_installer_file}"
-cd "${zimbra_intsaller_file%.tgz}"
+cd "${zimbra_installer_file%.tgz}" || exit 1
 
 cat << EOF > /tmp/zimbra_answers.txt
 y
