@@ -4,7 +4,7 @@ NOT FOR PRODUCTION USE
 bash-zimbra-single
 =====================
 
-This role automates the process of installing single-server Zimbra Open Source Edition v8.8.15 on CentOS 7.
+This script automates the process of installing single-server Zimbra Open Source Edition v8.8.15 on CentOS 7.
 
 Requirements
 ------------
