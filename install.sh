@@ -74,15 +74,15 @@ zone "." IN {
 	file "named.ca";
 };
 
-zone ${zimbra_domain} IN {
+zone "${zimbra_domain}" IN {
 	type master;
-	file ${zimbra_domain}.zone";
+	file "${zimbra_domain}.zone";
 	allow-update { none; };
 };
 
-zone ${zimbra_reverse_ip}.in-addr.arpa" IN {
+zone "${zimbra_reverse_ip}.in-addr.arpa" IN {
 	type master;
-	file ${zimbra_domain}.revzone";
+	file "${zimbra_domain}.revzone";
 	allow-update { none; };
 };
 
