@@ -121,7 +121,7 @@ wget -P ./files "${zimbra_installer_url}"
 tar xvf ./files/"${zimbra_installer_file}" -C ./files/
 cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
 
-cat << EOF > ./files/zimbra_answers.txt
+cat << EOF > ../zimbra_answers.txt
 y
 y
 y
@@ -140,7 +140,7 @@ n
 y
 EOF
 
-./install.sh -s < ../files/zimbra_answers.txt
+./install.sh -s < ../zimbra_answers.txt
 
 cat << EOF > ./files/zimbra_config.txt
 AVDOMAIN="${zimbra_domain}"
@@ -238,4 +238,4 @@ zimbra_require_interprocess_security="1"
 INSTALL_PACKAGES="zimbra-core zimbra-ldap zimbra-logger zimbra-mta zimbra-snmp zimbra-store zimbra-apache zimbra-spell zimbra-memcached zimbra-proxy "
 EOF
 
-/opt/zimbra/libexec/zmsetup.pl -c ../files/zimbra_config.txt
+/opt/zimbra/libexec/zmsetup.pl -c ../zimbra_config.txt
