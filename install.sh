@@ -1,21 +1,6 @@
 #!/bin/bash
 
-zimbra_timezone='Asia/Manila'
-zimbra_fqdn='mail.example.com'
-zimbra_shortname='mail'
-zimbra_network_name='eth0'
-zimbra_ip='192.168.122.75'
-zimbra_reverse_ip='122.168.192'
-zimbra_ptr='75'
-zimbra_subnet='192.168.122.0/24'
-zimbra_forwarders='8.8.8.8; 8.8.4.4;'
-zimbra_domain='example.com'
-zimbra_serial="$(date +%Y%m%d01)"
-zimbra_installer_url='https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.RHEL7_64.20190918004220.tgz'
-zimbra_installer_file='zcs-8.8.15_GA_3869.RHEL7_64.20190918004220.tgz'
-zimbra_admin_password='bash@zimbra2020'
-zimbra_system_password='zimbra@bash2020'
-
+source ./vars/main.txt
 
 timedatectl set-timezone "${zimbra_timezone}"
 timedatectl set-ntp true
