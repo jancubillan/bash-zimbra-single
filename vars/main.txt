@@ -13,3 +13,4 @@ zimbra_installer_url='https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA
 zimbra_installer_file='zcs-8.8.15_GA_3869.RHEL7_64.20190918004220.tgz'
 zimbra_admin_password='bash@zimbra2020'
 zimbra_system_password='zimbra@bash2020'
+zimbra_random_chars=$(date | md5sum | cut -c 1-9)
