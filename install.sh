@@ -142,7 +142,7 @@ EOF
 
 ./install.sh -s < ../zimbra_answers.txt
 
-cat << EOF > ./files/zimbra_config.txt
+cat << EOF > ../zimbra_config.txt
 AVDOMAIN="${zimbra_domain}"
 AVUSER="admin@${zimbra_domain}"
 CREATEADMIN="admin@${zimbra_domain}"
