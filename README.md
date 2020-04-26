@@ -16,8 +16,8 @@ How to use:
 
     # git clone https://github.com/jancubillan/bash-zimbra-single.git
     # cd bash-zimbra-single
-    # vi install.sh
-    # bash install.sh
+    # vi vars/main.txt
+    # bash main.sh
 
 Reset Administrator password:
 
