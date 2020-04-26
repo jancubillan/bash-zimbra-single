@@ -13,9 +13,15 @@ Requirements
 2) Static network configuration must be already set
 
 How to use:
+-----------
+
+Clone and change directory to the project folder
 
     # git clone https://github.com/jancubillan/bash-zimbra-single.git
     # cd bash-zimbra-single
+
+Modify the variables file then run the main.sh script
+
     # vi vars/main.txt
     # bash main.sh
 
