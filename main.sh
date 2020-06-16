@@ -2,25 +2,36 @@
 
 source ./vars/main.txt
 
-timedatectl set-timezone "${zimbra_timezone}"
-timedatectl set-ntp true
-systemctl restart chronyd
+set_time() {
+    timedatectl set-timezone "${zimbra_timezone}"
+    timedatectl set-ntp true
+    systemctl restart chronyd
+}
 
-hostnamectl set-hostname "${zimbra_fqdn}"
-printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
+set_hostname() {
+    hostnamectl set-hostname "${zimbra_fqdn}"
+    printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
+}
 
-yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
-yum update -y
+install_packages() {
+    yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
+    yum update -y
+}
 
-firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
-firewall-cmd --reload
+open_ports() {
+    firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
+    firewall-cmd --reload
+}
 
-systemctl --now disable postfix
-systemctl mask postfix
+disable_postfix() {
+    systemctl --now disable postfix
+    systemctl mask postfix
+}
 
-yum install -y bind
-mv /etc/named.conf /etc/named.conf."$(date +%F)".bak
-cat << EOF > /etc/named.conf
+install_bind() {
+    yum install -y bind
+    mv /etc/named.conf /etc/named.conf."$(date +%F)".bak
+    cat << EOF > /etc/named.conf
 options {
 	listen-on port 53 { any; };
 	directory 	"/var/named";
@@ -74,11 +85,13 @@ zone "${zimbra_reverse_ip}.in-addr.arpa" IN {
 include "/etc/named.rfc1912.zones";
 include "/etc/named.root.key";
 EOF
+}
 
-chown root.named /etc/named.conf
-chmod 640 /etc/named.conf
+set_bind() {
+    chown root.named /etc/named.conf
+    chmod 640 /etc/named.conf
 
-cat << EOF > /var/named/"${zimbra_domain}".zone
+    cat << EOF > /var/named/"${zimbra_domain}".zone
 \$TTL 1D
 @	IN SOA	@ ${zimbra_domain}. (
 				${zimbra_serial}	; serial
@@ -92,10 +105,10 @@ cat << EOF > /var/named/"${zimbra_domain}".zone
 ${zimbra_shortname}	A	${zimbra_ip}
 EOF
 
-chown root.named /var/named/"${zimbra_domain}".zone
-chmod 640 /var/named/"${zimbra_domain}".zone
+    chown root.named /var/named/"${zimbra_domain}".zone
+    chmod 640 /var/named/"${zimbra_domain}".zone
 
-cat << EOF > /var/named/"${zimbra_domain}".revzone
+    cat << EOF > /var/named/"${zimbra_domain}".revzone
 \$TTL 1D
 @	IN SOA	@ ${zimbra_domain}. (
 				${zimbra_serial}	; serial
@@ -107,21 +120,27 @@ cat << EOF > /var/named/"${zimbra_domain}".revzone
 ${zimbra_ptr}	PTR	${zimbra_fqdn}.
 EOF
 
-chown root.named /var/named/"${zimbra_domain}".revzone
-chmod 640 /var/named/"${zimbra_domain}".revzone
+    chown root.named /var/named/"${zimbra_domain}".revzone
+    chmod 640 /var/named/"${zimbra_domain}".revzone
 
-systemctl --now enable named
+    systemctl --now enable named
+}
 
-nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
-nmcli con reload
-nmcli con up "${zimbra_network_name}"
+set_loopback_dns() {
+    nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
+    nmcli con reload
+    nmcli con up "${zimbra_network_name}"
+}
 
-yum install -y perl net-tools
-wget -P ./files "${zimbra_installer_url}"
-tar xvf ./files/"${zimbra_installer_file}" -C ./files/
-cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
+prepare_zimbra() {
+    yum install -y perl net-tools
+    wget -P ./files "${zimbra_installer_url}"
+    tar xvf ./files/"${zimbra_installer_file}" -C ./files/
+    cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
+}
 
-cat << EOF > ../zimbra_answers.txt
+phase1_install() {
+    cat << EOF > ../zimbra_answers.txt
 y
 y
 y
@@ -140,9 +159,11 @@ n
 y
 EOF
 
-./install.sh -s < ../zimbra_answers.txt
+    ./install.sh -s < ../zimbra_answers.txt
+}
 
-cat << EOF > ../zimbra_config.txt
+phase2_install() {
+    cat << EOF > ../zimbra_config.txt
 AVDOMAIN="${zimbra_domain}"
 AVUSER="admin@${zimbra_domain}"
 CREATEADMIN="admin@${zimbra_domain}"
@@ -238,4 +259,17 @@ zimbra_require_interprocess_security="1"
 INSTALL_PACKAGES="zimbra-core zimbra-ldap zimbra-logger zimbra-mta zimbra-snmp zimbra-store zimbra-apache zimbra-spell zimbra-memcached zimbra-proxy "
 EOF
 
-/opt/zimbra/libexec/zmsetup.pl -c ../zimbra_config.txt
+    /opt/zimbra/libexec/zmsetup.pl -c ../zimbra_config.txt
+}
+
+set_time
+set_hostname
+install_packages
+open_ports
+disable_postfix
+install_bind
+set_bind
+set_loopback_dns
+prepare_zimbra
+phase1_install
+phase2_install
