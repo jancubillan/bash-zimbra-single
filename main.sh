@@ -14,7 +14,7 @@ set_hostname() {
 }
 
 install_packages() {
-    yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync
+    yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync tar
     yum update -y
 }
 
