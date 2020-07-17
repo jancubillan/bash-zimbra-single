@@ -24,8 +24,10 @@ open_ports() {
 }
 
 disable_postfix() {
-    systemctl --now disable postfix
-    systemctl mask postfix
+    if systemctl status postfix; then
+        systemctl --now disable postfix
+        systemctl mask postfix
+    fi
 }
 
 install_bind() {
