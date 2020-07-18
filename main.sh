@@ -141,6 +141,13 @@ prepare_zimbra() {
     cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
 }
 
+prepare_zimbra9() {
+    yum install -y perl net-tools
+    wget -P ./files "${zimbra9_installer_url}"
+    tar xvf ./files/"${zimbra9_installer_file}" -C ./files/
+    cd ./files/zimbra-installer || exit 1
+}
+
 phase1_install() {
     cat << EOF > ../zimbra_answers.txt
 y
@@ -264,14 +271,31 @@ EOF
     /opt/zimbra/libexec/zmsetup.pl -c ../zimbra_config.txt
 }
 
-set_time
-set_hostname
-install_packages
-open_ports
-disable_postfix
-install_bind
-set_bind
-set_loopback_dns
-prepare_zimbra
-phase1_install
-phase2_install
+case "${1}" in
+    --zimbra9|-zm9)
+        set_time
+        set_hostname
+        install_packages
+        open_ports
+        disable_postfix
+        install_bind
+        set_bind
+        set_loopback_dns
+        prepare_zimbra9
+        phase1_install
+        phase2_install
+    ;;
+    *)
+        set_time
+        set_hostname
+        install_packages
+        open_ports
+        disable_postfix
+        install_bind
+        set_bind
+        set_loopback_dns
+        prepare_zimbra
+        phase1_install
+        phase2_install
+    ;;
+esac
