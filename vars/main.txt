@@ -16,3 +16,5 @@ zimbra9_installer_file='zcs-9.0.0_OSE_RHEL8_latest-zextras.tgz'
 zimbra_admin_password='bash@zimbra2020'
 zimbra_system_password='zimbra@bash2020'
 zimbra_random_chars="$(date | md5sum | cut -c 1-9)"
+zimbra_mailboxd_memory="$(free -m | awk 'NR==2{printf "%.0f\n", $2*0.25 }')"
+zimbra_system_memory="$(free -h | awk 'NR==2{printf "%.0f\n", $2* }')"
