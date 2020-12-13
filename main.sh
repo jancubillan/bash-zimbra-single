@@ -3,9 +3,17 @@
 source ./vars/main.txt
 
 set_time() {
-    timedatectl set-timezone "${zimbra_timezone}"
-    timedatectl set-ntp true
-    systemctl restart chronyd
+    if ! rpm -q chrony; then
+        yum install -y chrony
+        systemctl --now enable chronyd
+        timedatectl set-timezone "${zimbra_timezone}"
+        timedatectl set-ntp true
+        systemctl restart chronyd
+    else
+        timedatectl set-timezone "${zimbra_timezone}"
+        timedatectl set-ntp true
+        systemctl restart chronyd
+    fi
 }
 
 set_hostname() {
@@ -30,105 +38,33 @@ disable_postfix() {
     fi
 }
 
-install_bind() {
-    yum install -y bind
-    mv /etc/named.conf /etc/named.conf."$(date +%F)".bak
-    cat << EOF > /etc/named.conf
-options {
-	listen-on port 53 { any; };
-	directory 	"/var/named";
-	dump-file 	"/var/named/data/cache_dump.db";
-	statistics-file "/var/named/data/named_stats.txt";
-	memstatistics-file "/var/named/data/named_mem_stats.txt";
-	recursing-file  "/var/named/data/named.recursing";
-	secroots-file   "/var/named/data/named.secroots";
-	allow-query     { any; };
 
-	recursion yes;
+install_dnsmasq() {
+    yum install -y dnsmasq
+    mv /etc/dnsmasq.conf /etc/dnsmasq.conf."$(date +%F)".bak
+    cat << EOF > /etc/dnsmasq.conf
+server=8.8.8.8
+server=8.8.4.4
 
-	forward only;
-	forwarders { ${zimbra_forwarders} };
+listen-address=127.0.0.1,${zimbra_ip}
 
-	dnssec-enable yes;
-	dnssec-validation no;
+domain=${zimbra_domain}
 
-	bindkeys-file "/etc/named.root.key";
+mx-host=${zimbra_domain},${zimbra_fqdn},1
 
-	managed-keys-directory "/var/named/dynamic";
+addn-hosts=/etc/hosts
 
-	pid-file "/run/named/named.pid";
-	session-keyfile "/run/named/session.key";
-};
-
-logging {
-        channel default_debug {
-                file "data/named.run";
-                severity dynamic;
-        };
-};
-
-zone "." IN {
-	type hint;
-	file "named.ca";
-};
-
-zone "${zimbra_domain}" IN {
-	type master;
-	file "${zimbra_domain}.zone";
-	allow-update { none; };
-};
-
-zone "${zimbra_reverse_ip}.in-addr.arpa" IN {
-	type master;
-	file "${zimbra_domain}.revzone";
-	allow-update { none; };
-};
-
-include "/etc/named.rfc1912.zones";
-include "/etc/named.root.key";
-EOF
-}
-
-set_bind() {
-    chown root.named /etc/named.conf
-    chmod 640 /etc/named.conf
-
-    cat << EOF > /var/named/"${zimbra_domain}".zone
-\$TTL 1D
-@	IN SOA	@ ${zimbra_domain}. (
-				${zimbra_serial}	; serial
-					1D	; refresh
-					1H	; retry
-					1W	; expire
-					3H )	; minimum
-	NS	@
-	A	${zimbra_ip}
-	MX	1	${zimbra_fqdn}.
-${zimbra_shortname}	A	${zimbra_ip}
+cache-size=9500
 EOF
 
-    chown root.named /var/named/"${zimbra_domain}".zone
-    chmod 640 /var/named/"${zimbra_domain}".zone
+    chown root.dnsmasq /etc/dnsmasq.conf
+    chmod 644 /etc/dnsmasq.conf
 
-    cat << EOF > /var/named/"${zimbra_domain}".revzone
-\$TTL 1D
-@	IN SOA	@ ${zimbra_domain}. (
-				${zimbra_serial}	; serial
-					1D	; refresh
-					1H	; retry
-					1W	; expire
-					3H )	; minimum
-	NS	${zimbra_domain}.
-${zimbra_ptr}	PTR	${zimbra_fqdn}.
-EOF
-
-    chown root.named /var/named/"${zimbra_domain}".revzone
-    chmod 640 /var/named/"${zimbra_domain}".revzone
-
-    systemctl --now enable named
+    systemctl --now enable dnsmasq
 }
 
 set_loopback_dns() {
+    nmcli con mod "${zimbra_network_name}" ipv4.method manual ipv4.addresses "${zimbra_ip}${zimbra_prefix}" ipv4.gateway "${zimbra_gateway}"
     nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
     nmcli con reload
     nmcli con up "${zimbra_network_name}"
@@ -172,6 +108,12 @@ EOF
 }
 
 phase2_install() {
+    zimbra_system_password="$(date | md5sum | cut -c 1-14)"
+    sleep 3
+    zimbra_random_chars="$(date | md5sum | cut -c 1-9)"
+    zimbra_mailboxd_memory="$(free -m | awk 'NR==2{printf "%.0f\n", $2*0.25 }')"
+    zimbra_system_memory="$(free -h | awk 'NR==2{printf "%.0f\n", $2 }')"
+
     cat << EOF > ../zimbra_config.txt
 AVDOMAIN="${zimbra_domain}"
 AVUSER="admin@${zimbra_domain}"
@@ -257,7 +199,7 @@ zimbraFeatureTasksEnabled="Enabled"
 zimbraIPMode="ipv4"
 zimbraMailProxy="TRUE"
 zimbraMtaMyNetworks="127.0.0.0/8 [::1]/128 ${zimbra_subnet}"
-zimbraPrefTimeZoneId="Asia/Singapore"
+zimbraPrefTimeZoneId="${zimbra_timezone}"
 zimbraReverseProxyLookupTarget="TRUE"
 zimbraVersionCheckNotificationEmail="admin@${zimbra_domain}"
 zimbraVersionCheckNotificationEmailFrom="admin@${zimbra_domain}"
@@ -278,8 +220,7 @@ case "${1}" in
         install_packages
         open_ports
         disable_postfix
-        install_bind
-        set_bind
+        install_dnsmasq
         set_loopback_dns
         prepare_zimbra9
         phase1_install
@@ -291,8 +232,7 @@ case "${1}" in
         install_packages
         open_ports
         disable_postfix
-        install_bind
-        set_bind
+        install_dnsmasq
         set_loopback_dns
         prepare_zimbra
         phase1_install
