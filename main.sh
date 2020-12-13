@@ -213,6 +213,87 @@ EOF
     /opt/zimbra/libexec/zmsetup.pl -c ../zimbra_config.txt
 }
 
+set_trusted_ip() {
+    su - zimbra -c "zmprov mcf +zimbraMailTrustedIP 127.0.0.1 +zimbraMailTrustedIP ${zimbra_ip}"
+    su - zimbra -c "zmcontrol restart"
+}
+
+install_fail2ban() {
+    yum install -y epel-release
+    yum install -y fail2ban
+    cat << EOF > /etc/fail2ban/jail.local
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ${zimbra_ip}/32
+EOF
+
+    cat << EOF > /etc/fail2ban/jail.d/zimbra.local
+[zimbra-smtp]
+enabled = true
+filter = zimbra-smtp
+port = 25,465,587
+logpath = /var/log/zimbra.log
+maxretry = 3
+findtime = 600
+bantime = 3600
+
+[zimbra-webmail]
+enabled = true
+filter = zimbra-webmail
+port = 80,443
+logpath = /opt/zimbra/log/mailbox.log
+maxretry = 3
+findtime = 600
+bantime = 3600
+
+[zimbra-admin]
+enabled = true
+filter = zimbra-admin
+port = 7071,9071
+logpath = /opt/zimbra/log/mailbox.log
+maxretry = 3
+findtime = 600
+bantime = 3600
+EOF
+
+    cat << EOF > /etc/fail2ban/jail.d/sshd.local
+[sshd]
+enabled = true
+port = 22
+maxretry = 3
+findtime = 600
+bantime = 3600
+EOF
+
+    cat << EOF > /etc/fail2ban/filter.d/zimbra-webmail.conf
+[Definition]
+#
+failregex = \[oip=<HOST>;.* SoapEngine - handler exception: authentication failed for .*, account not found$
+            INFO .*;oip=<HOST>;.* SoapEngine - handler exception: authentication failed for .*, invalid password$
+
+ignoreregex =
+EOF
+
+    cat << EOF > /etc/fail2ban/filter.d/zimbra-smtp.conf
+[Definition]
+#
+failregex = postfix\/submission\/smtpd\[\d+\]: warning: .*\[<HOST>\]: SASL \w+ authentication failed: authentication failure$
+            postfix\/smtps\/smtpd\[\d+\]: warning: .*\[<HOST>\]: SASL \w+ authentication failed: authentication failure$
+
+ignoreregex =
+EOF
+
+    cat << EOF > /etc/fail2ban/filter.d/zimbra-admin.conf
+[Definition]
+#
+failregex = INFO .*;ip=<HOST>;.* SoapEngine - handler exception: authentication failed for .*, invalid password$
+            INFO .*ip=<HOST>;.* SoapEngine - handler exception: authentication failed for .*, account not found$
+
+ignoreregex =
+EOF
+
+    systemctl --now enable fail2ban
+}
+
 case "${1}" in
     --zimbra9|-zm9)
         set_time
@@ -225,6 +306,8 @@ case "${1}" in
         prepare_zimbra9
         phase1_install
         phase2_install
+        set_trusted_ip
+        install_fail2ban
     ;;
     *)
         set_time
@@ -237,5 +320,7 @@ case "${1}" in
         prepare_zimbra
         phase1_install
         phase2_install
+        set_trusted_ip
+        install_fail2ban
     ;;
 esac
