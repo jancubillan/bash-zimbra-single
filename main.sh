@@ -115,6 +115,7 @@ set_loopback_dns() {
         nmcli con reload
         nmcli con up "${zimbra_network_name}"
     else
+        rm -f /etc/resolv.conf
         {
         printf '%s\n' "search ${zimbra_domain// /}"
         printf '%s\n' "nameserver 127.0.0.1"
