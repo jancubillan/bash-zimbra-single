@@ -2,33 +2,64 @@
 
 source ./vars/main.txt
 
+zimbra_domain=$(echo "${zimbra_fqdn}" | awk -F'.' '{print $2,".",$3}')
+
 set_time() {
-    if ! rpm -q chrony; then
-        yum install -y chrony
-        systemctl --now enable chronyd
-        timedatectl set-timezone "${zimbra_timezone}"
-        timedatectl set-ntp true
-        systemctl restart chronyd
+    if ! which lsb_release >/dev/null 2>&1; then
+        if ! rpm -q chrony; then
+            yum install -y chrony
+            systemctl --now enable chronyd
+            timedatectl set-timezone "${zimbra_timezone}"
+            timedatectl set-ntp true
+            systemctl restart chronyd
+        else
+            timedatectl set-timezone "${zimbra_timezone}"
+            timedatectl set-ntp true
+            systemctl restart chronyd
+        fi
     else
         timedatectl set-timezone "${zimbra_timezone}"
-        timedatectl set-ntp true
-        systemctl restart chronyd
+        systemctl --now disable systemd-timesyncd
+        systemctl mask systemd-timesyncd
+        apt-get install -y chrony
     fi
 }
 
 set_hostname() {
+    zimbra_shortname=$(echo "${zimbra_fqdn}" | awk -F'.' '{print $1}')
     hostnamectl set-hostname "${zimbra_fqdn}"
-    printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
+    if ! which lsb_release >/dev/null 2>&1; then
+        printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}" | tee -a /etc/hosts
+    else
+        {
+        printf '%s\n' "127.0.0.1 localhost.localdomain localhost"
+        printf '%s\n' "${zimbra_ip} ${zimbra_fqdn} ${zimbra_shortname}"
+        } > /etc/hosts
+    fi
 }
 
 install_packages() {
-    yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync tar nmap-ncat
-    yum update -y
+    if ! which lsb_release >/dev/null 2>&1; then
+        yum install -y bash-completion tmux telnet bind-utils tcpdump wget lsof rsync tar nmap-ncat
+        yum update -y
+    else
+        apt-get install -y bash-completion tmux telnet dnsutils tcpdump wget lsof rsync
+        apt-get -y dist-upgrade
+    fi
 }
 
 open_ports() {
-    firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
-    firewall-cmd --reload
+    if ! which lsb_release >/dev/null 2>&1; then
+        firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
+        firewall-cmd --reload
+    else
+        ufw disable
+        systemctl --now disable ufw
+        systemctl mask ufw
+        apt-get install -y firewalld
+        firewall-cmd --permanent --add-port={25,465,587,110,995,143,993,80,443,7071}/tcp
+        firewall-cmd --reload
+    fi
 }
 
 disable_postfix() {
@@ -38,9 +69,20 @@ disable_postfix() {
     fi
 }
 
-
 install_dnsmasq() {
-    yum install -y dnsmasq
+    if ! which lsb_release >/dev/null 2>&1; then
+        yum install -y dnsmasq
+    else
+        systemctl --now disable systemd-resolved
+        systemctl mask systemd-resolved
+        rm -f /etc/resolv.conf
+        {
+        printf '%s\n' "search ${zimbra_domain// /}"
+        printf '%s\n' "nameserver 8.8.8.8"
+        printf '%s\n' "nameserver 8.8.4.4"
+        } > /etc/resolv.conf
+        apt-get install -y dnsmasq
+    fi
     mv /etc/dnsmasq.conf /etc/dnsmasq.conf."$(date +%F)".bak
     cat << EOF > /etc/dnsmasq.conf
 server=8.8.8.8
@@ -48,40 +90,68 @@ server=8.8.4.4
 
 listen-address=127.0.0.1,${zimbra_ip}
 
-domain=${zimbra_domain}
+domain=${zimbra_domain// /}
 
-mx-host=${zimbra_domain},${zimbra_fqdn},1
+mx-host=${zimbra_domain// /},${zimbra_fqdn},1
 
 addn-hosts=/etc/hosts
 
 cache-size=9500
 EOF
 
-    chown root.dnsmasq /etc/dnsmasq.conf
-    chmod 644 /etc/dnsmasq.conf
-
-    systemctl --now enable dnsmasq
+    if ! which lsb_release >/dev/null 2>&1; then
+        chown root.dnsmasq /etc/dnsmasq.conf
+        chmod 644 /etc/dnsmasq.conf
+        systemctl --now enable dnsmasq
+    else
+        systemctl restart dnsmasq
+    fi
 }
 
 set_loopback_dns() {
-    nmcli con mod "${zimbra_network_name}" ipv4.method manual ipv4.addresses "${zimbra_ip}${zimbra_prefix}" ipv4.gateway "${zimbra_gateway}"
-    nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
-    nmcli con reload
-    nmcli con up "${zimbra_network_name}"
+    if ! which lsb_release >/dev/null 2>&1; then
+        nmcli con mod "${zimbra_network_name}" ipv4.method manual ipv4.addresses "${zimbra_ip}${zimbra_prefix}" ipv4.gateway "${zimbra_gateway}"
+        nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
+        nmcli con reload
+        nmcli con up "${zimbra_network_name}"
+    else
+        {
+        printf '%s\n' "search ${zimbra_domain// /}"
+        printf '%s\n' "nameserver 127.0.0.1"
+        } > /etc/resolv.conf
+    fi
 }
 
 prepare_zimbra() {
-    yum install -y perl net-tools
-    wget -P ./files "${zimbra_installer_url}"
-    tar xvf ./files/"${zimbra_installer_file}" -C ./files/
-    cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
+    if ! which lsb_release >/dev/null 2>&1; then
+        zimbra_installer_file=$(echo "${zimbra_installer_url}" | awk -F'/' '{print $6}')
+        yum install -y perl net-tools
+        wget -P ./files "${zimbra_installer_url}"
+        tar xvf ./files/"${zimbra_installer_file}" -C ./files/
+        cd ./files/"${zimbra_installer_file%.tgz}" || exit 1
+    else
+        zimbra_installer_file_ubuntu=$(echo "${zimbra_installer_url_ubuntu}" | awk -F'/' '{print $6}')
+        apt-get install -y perl net-tools
+        wget -P ./files "${zimbra_installer_url_ubuntu}"
+        tar xvf ./files/"${zimbra_installer_file_ubuntu}" -C ./files/
+        cd ./files/"${zimbra_installer_file_ubuntu%.tgz}" || exit 1
+    fi
 }
 
 prepare_zimbra9() {
-    yum install -y perl net-tools
-    wget -P ./files "${zimbra9_installer_url}"
-    tar xvf ./files/"${zimbra9_installer_file}" -C ./files/
-    cd ./files/zimbra-installer || exit 1
+    if ! which lsb_release >/dev/null 2>&1; then
+        zimbra9_installer_file=$(echo "${zimbra9_installer_url}" | awk -F'/' '{print $4}')
+        yum install -y perl net-tools
+        wget -P ./files "${zimbra9_installer_url}"
+        tar xvf ./files/"${zimbra9_installer_file}" -C ./files/
+        cd ./files/zimbra-installer || exit 1
+    else
+        zimbra9_installer_file_ubuntu=$(echo "${zimbra9_installer_url_ubuntu}" | awk -F'/' '{print $4}')
+        apt-get install -y perl net-tools
+        wget -P ./files "${zimbra9_installer_url_ubuntu}"
+        tar xvf ./files/"${zimbra9_installer_file_ubuntu}" -C ./files/
+        cd ./files/zimbra-installer || exit 1
+    fi
 }
 
 phase1_install() {
@@ -115,11 +185,11 @@ phase2_install() {
     zimbra_system_memory="$(free -h | awk 'NR==2{printf "%.0f\n", $2 }')"
 
     cat << EOF > ../zimbra_config.txt
-AVDOMAIN="${zimbra_domain}"
-AVUSER="admin@${zimbra_domain}"
-CREATEADMIN="admin@${zimbra_domain}"
+AVDOMAIN="${zimbra_domain// /}"
+AVUSER="admin@${zimbra_domain// /}"
+CREATEADMIN="admin@${zimbra_domain// /}"
 CREATEADMINPASS="${zimbra_admin_password}"
-CREATEDOMAIN="${zimbra_domain}"
+CREATEDOMAIN="${zimbra_domain// /}"
 DOCREATEADMIN="yes"
 DOCREATEDOMAIN="yes"
 DOTRAINSA="yes"
@@ -158,24 +228,24 @@ RUNDKIM="yes"
 RUNSA="yes"
 RUNVMHA="no"
 SERVICEWEBAPP="yes"
-SMTPDEST="admin@${zimbra_domain}"
+SMTPDEST="admin@${zimbra_domain// /}"
 SMTPHOST="${zimbra_fqdn}"
 SMTPNOTIFY="yes"
-SMTPSOURCE="admin@${zimbra_domain}"
+SMTPSOURCE="admin@${zimbra_domain// /}"
 SNMPNOTIFY="yes"
 SNMPTRAPHOST="${zimbra_fqdn}"
 SPELLURL="http://${zimbra_fqdn}:7780/aspell.php"
 STARTSERVERS="yes"
 STRICTSERVERNAMEENABLED="TRUE"
 SYSTEMMEMORY="${zimbra_system_memory}"
-TRAINSAHAM="ham.${zimbra_random_chars}@${zimbra_domain}"
-TRAINSASPAM="spam.${zimbra_random_chars}@${zimbra_domain}"
+TRAINSAHAM="ham.${zimbra_random_chars}@${zimbra_domain// /}"
+TRAINSASPAM="spam.${zimbra_random_chars}@${zimbra_domain// /}"
 UIWEBAPPS="yes"
 UPGRADE="yes"
 USEEPHEMERALSTORE="no"
 USESPELL="yes"
 VERSIONUPDATECHECKS="TRUE"
-VIRUSQUARANTINE="virus-quarantine.${zimbra_random_chars}@${zimbra_domain}"
+VIRUSQUARANTINE="virus-quarantine.${zimbra_random_chars}@${zimbra_domain// /}"
 ZIMBRA_REQ_SECURITY="yes"
 ldap_bes_searcher_password="${zimbra_system_password}"
 ldap_dit_base_dn_config="cn=zimbra"
@@ -201,8 +271,8 @@ zimbraMailProxy="TRUE"
 zimbraMtaMyNetworks="127.0.0.0/8 [::1]/128 ${zimbra_subnet}"
 zimbraPrefTimeZoneId="${zimbra_timezone}"
 zimbraReverseProxyLookupTarget="TRUE"
-zimbraVersionCheckNotificationEmail="admin@${zimbra_domain}"
-zimbraVersionCheckNotificationEmailFrom="admin@${zimbra_domain}"
+zimbraVersionCheckNotificationEmail="admin@${zimbra_domain// /}"
+zimbraVersionCheckNotificationEmailFrom="admin@${zimbra_domain// /}"
 zimbraVersionCheckSendNotifications="TRUE"
 zimbraWebProxy="TRUE"
 zimbra_ldap_userdn="uid=zimbra,cn=admins,cn=zimbra"
@@ -219,8 +289,12 @@ set_trusted_ip() {
 }
 
 install_fail2ban() {
-    yum install -y epel-release
-    yum install -y fail2ban
+    if ! which lsb_release >/dev/null 2>&1; then
+        yum install -y epel-release
+        yum install -y fail2ban
+    else
+        apt-get install -y fail2ban
+    fi
     cat << EOF > /etc/fail2ban/jail.local
 [DEFAULT]
 ignoreip = 127.0.0.1/8 ${zimbra_ip}/32
@@ -291,7 +365,11 @@ failregex = INFO .*;ip=<HOST>;.* SoapEngine - handler exception: authentication 
 ignoreregex =
 EOF
 
-    systemctl --now enable fail2ban
+    if ! which lsb_release >/dev/null 2>&1; then
+        systemctl --now enable fail2ban
+    else
+        systemctl restart fail2ban
+    fi
 }
 
 case "${1}" in

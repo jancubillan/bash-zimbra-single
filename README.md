@@ -1,12 +1,12 @@
 bash-zimbra-single
-=====================
+==================
 
-This script automates the process of installing single-server Zimbra Open Source Edition v8.8.15 on CentOS 8.
+This script automates the process of installing single-server Zimbra Open Source Edition v8.8.15 on CentOS 8 and Ubuntu 18.04.
 
 Requirements
 ------------
 
-1) Must be a fresh CentOS 8 minimal installation
+1) Must be a fresh CentOS 8 or Ubuntu 18.04 minimal installation
 2) Static network configuration must be already set
 
 How to use:
