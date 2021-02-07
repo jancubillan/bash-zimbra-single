@@ -3,6 +3,10 @@
 source ./vars/main.txt
 
 zimbra_domain=$(echo "${zimbra_fqdn}" | awk -F'.' '{print $2,".",$3}')
+zimbra_installer_url='https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3953.RHEL8_64.20200629025823.tgz'
+zimbra_installer_url_ubuntu='https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz'
+zimbra9_installer_url='https://download.zextras.com/zcs-9.0.0_OSE_RHEL8_latest-zextras.tgz'
+zimbra9_installer_url_ubuntu='https://download.zextras.com/zcs-9.0.0_OSE_UBUNTU18_latest-zextras.tgz'
 
 set_time() {
     if ! which lsb_release >/dev/null 2>&1; then
@@ -110,10 +114,10 @@ EOF
 
 set_loopback_dns() {
     if ! which lsb_release >/dev/null 2>&1; then
-        nmcli con mod "${zimbra_network_name}" ipv4.method manual ipv4.addresses "${zimbra_ip}${zimbra_prefix}" ipv4.gateway "${zimbra_gateway}"
-        nmcli con mod "${zimbra_network_name}" ipv4.dns 127.0.0.1
+        nmcli con mod "${zimbra_interface}" ipv4.method manual ipv4.addresses "${zimbra_ip}${zimbra_prefix}" ipv4.gateway "${zimbra_gateway}"
+        nmcli con mod "${zimbra_interface}" ipv4.dns 127.0.0.1
         nmcli con reload
-        nmcli con up "${zimbra_network_name}"
+        nmcli con up "${zimbra_interface}"
     else
         rm -f /etc/resolv.conf
         {
