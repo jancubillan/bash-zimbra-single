@@ -96,6 +96,8 @@ listen-address=127.0.0.1,${zimbra_ip}
 
 domain=${zimbra_domain// /}
 
+host-record=${zimbra_fqdn},${zimbra_ip}
+
 mx-host=${zimbra_domain// /},${zimbra_fqdn},1
 
 addn-hosts=/etc/hosts
@@ -391,6 +393,21 @@ case "${1}" in
         phase2_install
         set_trusted_ip
         install_fail2ban
+    ;;
+    --no-dns|-nodns)
+        set_time
+        set_hostname
+        install_packages
+        open_ports
+        disable_postfix
+        prepare_zimbra
+        phase1_install
+        phase2_install
+        set_trusted_ip
+        install_fail2ban
+    ;;
+    --dns-only|-dnsonly)
+        install_dnsmasq
     ;;
     *)
         set_time
