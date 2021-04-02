@@ -27,9 +27,9 @@ Modify the variables file then run the main.sh script. Good for traditional and 
 If you want to configure local DNS first then Zimbra later. Good for when networking is managed externally eg. AWS, Azure, GCP, etc.
 
     # bash main.sh --dns-only
-    # bash main-sh --no-dns (After you have pointed nameserver to localhost or private IP)
+    # bash main.sh --no-dns (After you have pointed nameserver to localhost or private IP)
     OR
-    # bash main-sh --zimbra9-no-dns (After you have pointed nameserver to localhost or private IP)
+    # bash main.sh --zimbra9-no-dns (After you have pointed nameserver to localhost or private IP)
 
 If you want to setup Zimbra without local DNS eg. DNS is handled externally (Setup records first before running!)
 
