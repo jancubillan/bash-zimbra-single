@@ -394,6 +394,18 @@ case "${1}" in
         set_trusted_ip
         install_fail2ban
     ;;
+    --zimbra9-no-dns|-zm9-nodns)
+        set_time
+        set_hostname
+        install_packages
+        open_ports
+        disable_postfix
+        prepare_zimbra9
+        phase1_install
+        phase2_install
+        set_trusted_ip
+        install_fail2ban
+    ;;
     --no-dns|-nodns)
         set_time
         set_hostname
